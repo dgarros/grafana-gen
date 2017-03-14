@@ -9,22 +9,42 @@ import os
 import re
 import json
 import sys
+import requests
 
 ############################################
 ### CLI Params
 #############################################
 def main():
 
-
     parser = argparse.ArgumentParser(description='Process user input')
     parser.add_argument("--file",
                         dest="dashboard",
                         help="Definition file for the dashboard to create")
 
-    parser.add_argument("--upload",
-                        dest="upload",
+    parser.add_argument("--out-file",
+                        dest="outfile",
+                        action="store_true",
+                        help="Save Dashboard to a JSON file on the local directory")
+
+    parser.add_argument("--out-server",
+                        dest="outserver",
                         action="store_true",
                         help="Upload Dashboard to a Grafana server")
+
+    parser.add_argument("--server",
+                        dest="server",
+                        default='localhost:3000',
+                        help="Address of a grafana server to upload the dashboard")
+
+    parser.add_argument("--login",
+                        dest="login",
+                        default='admin',
+                        help="Login to connect to a grafana server")
+
+    parser.add_argument("--password",
+                        dest="password",
+                        default='admin',
+                        help="Password to connect to a grafana server")
 
     parser.add_argument("--log",
                         dest="log",
@@ -200,19 +220,12 @@ def main():
     dashboard_file_name = dashboard['title'].lower() + '.json'
     dashboard_file_name = re.sub(r'\s', '_', dashboard_file_name)
 
-    logger.info('Dashboard File name: {}'.format(dashboard_file_name))
+    # logger.info('Dashboard File name: {}'.format(dashboard_file_name))
 
-    # Validate JSON and write content to file
+    # Validate JSON
     # If content is not valid, write current status in a debug File
-
     try:
-        ## Validate Json
         dashboard_json = json.loads(dashboard_tpl_rdr)
-
-        tmp_json = dict(dashboard=dashboard_json)
-
-        with open(dashboard_file_name, "w") as text_file:
-            json.dump(tmp_json, text_file, indent=2)
 
     except:
         debug_file_name = "debug_" + dashboard_file_name
@@ -220,10 +233,35 @@ def main():
         logger.warn('JSON not Valid, Debug File: {}'.format(debug_file_name))
         with open(debug_file_name, "w") as text_file:
             text_file.write(dashboard_tpl_rdr)
+        exit(1)
 
-    if args.upload:
-        print "Will upload the dashboard to Grafana"
+    tmp_json = dict(dashboard=dashboard_json, overwrite=True)
 
+    ## Write Dashboard to file
+    if args.outfile:
+        try:
+            with open(dashboard_file_name, "w") as text_file:
+                json.dump(tmp_json, text_file, indent=2)
+
+            logger.info('OUTPUT - Dashboard saved to {}'.format( dashboard_file_name ))
+        except:
+            logger.warn('Issue happened while trying to save the Dashboard to {}'.format(debug_file_name))
+
+    ## Post the Dashboard to Grafana directly
+    if args.outserver:
+        logger.debug('Will upload the dashboard to Grafana: {}'.format(args.server))
+        headers = {'content-type': 'application/json'}
+
+        session = requests.Session()
+        session.auth = (args.login, args.password)
+        url = 'http://{}/api/dashboards/db'.format(args.server)
+
+        r = session.post(url, data=json.dumps(tmp_json), headers=headers)
+
+        if r.status_code == 200:
+            logger.info('OUTPUT - Dashboard Uploaded to {}'.format( args.server ))
+        else:
+            logger.info('Issue while uploading the Dashboard to {}: Code '.format( args.server, r.status_code ))
 
 if __name__ == '__main__':
     main()
