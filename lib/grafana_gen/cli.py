@@ -195,7 +195,7 @@ def main():
         nbr_templatings = 0
 
         ## Extract unique values
-        list_templatings = set(dashboard['templatings'])
+        list_templatings = sorted(set(dashboard['templatings']))
 
         for templating in list(list_templatings):
             logger.info('Add Templating: {}'.format(templating))
