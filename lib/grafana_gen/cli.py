@@ -33,8 +33,14 @@ def main():
 
     parser.add_argument("--server",
                         dest="server",
-                        default='localhost:3000',
+                        default='http://localhost:3000',
                         help="Address of a grafana server to upload the dashboard")
+
+    parser.add_argument("--format",
+                        dest="format",
+                        default='autoload',
+                        choices=['manual','autoload'],
+                        help="Format of the file on disk when using --out-file")
 
     parser.add_argument("--login",
                         dest="login",
@@ -241,7 +247,10 @@ def main():
     if args.outfile:
         try:
             with open(dashboard_file_name, "w") as text_file:
-                json.dump(tmp_json, text_file, indent=2)
+                if args.format == 'manual':
+                    json.dump(dashboard_json, text_file, indent=2)
+                else:
+                    json.dump(tmp_json, text_file, indent=2)
 
             logger.info('OUTPUT - Dashboard saved to {}'.format( dashboard_file_name ))
         except:
@@ -250,18 +259,26 @@ def main():
     ## Post the Dashboard to Grafana directly
     if args.outserver:
         logger.debug('Will upload the dashboard to Grafana: {}'.format(args.server))
-        headers = {'content-type': 'application/json'}
 
+        headers = {'content-type': 'application/json'}
         session = requests.Session()
-        session.auth = (args.login, args.password)
-        url = 'http://{}/api/dashboards/db'.format(args.server)
+
+        api_key = os.environ.get('GRAFANA_API_KEY')
+
+        if not api_key:
+            session.auth = (args.login, args.password)
+        else:
+            logger.debug('Found Grafana Api Key: {}'.format(api_key))
+            headers['Authorization'] =  'Bearer '+ api_key
+
+        url = '{}/api/dashboards/db'.format(args.server)
 
         r = session.post(url, data=json.dumps(tmp_json), headers=headers)
 
         if r.status_code == 200:
             logger.info('OUTPUT - Dashboard Uploaded to {}'.format( args.server ))
         else:
-            logger.info('Issue while uploading the Dashboard to {}: Code '.format( args.server, r.status_code ))
+            logger.info('Issue while uploading the Dashboard to {}: Code {}'.format( args.server, r.status_code ))
 
 if __name__ == '__main__':
     main()
