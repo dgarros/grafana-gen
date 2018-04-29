@@ -14,7 +14,7 @@ __author__ = 'Damien Garros <dgarros@gmail.com>'
 requirements_data = parse_requirements('requirements.txt', session=uuid.uuid1())
 requirements = [str(package.req) for package in requirements_data]
 
-version = '0.0.7'
+version = '0.0.8'
 long_description = "Grafana Dashboard Gen"
 
 params = {
@@ -46,8 +46,3 @@ params = {
 
 setup(**params)
 
-    # 'entry_points': {
-    #     'console_scripts': [
-    #         'grafana-gen2 = grafana_gen.cli:main',
-    #     ]
-    # }
